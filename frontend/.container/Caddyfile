@@ -1,0 +1,9 @@
+:80 {
+	log {
+		level DEBUG
+	}
+
+	root * /app
+
+	file_server
+}

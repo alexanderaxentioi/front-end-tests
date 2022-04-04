@@ -1,0 +1,15 @@
+.git
+node_modules
+
+/build
+/storybook-static
+/.next
+/public
+
+# EsLint ignores dot files by default. Un–ignore ones in root directory
+# (e.g. .prettierrc.js, .storybook/)
+!/.*
+
+# For now, ignore storybook
+# !*.stories.tsx
+
