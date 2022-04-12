@@ -4,56 +4,248 @@ version: 2.1
 
 orbs:
   sonarcloud: sonarsource/sonarcloud@1.0.3
+  node: circleci/node@4.7.0
 
 commands:
+  checkout-project:
+    steps:
+      - checkout:
+          path: ~/project
+
+  restore-cache-backend:
+    steps:
+      - restore_cache:
+          keys:
+            - backend-packages-{{ checksum "~/project/backend/package-lock.json" }}
+  save-cache-backend:
+    steps:
+      - save_cache:
+          paths:
+            - ~/project/backend/package-lock.json
+            - ~/project/backend/node_modules
+          key: backend-packages-{{ checksum "~/project/backend/package-lock.json" }}
+
+  restore-cache-frontend:
+    steps:
+      - restore_cache:
+          keys:
+            - frontend-packages-{{ checksum "~/project/frontend/yarn.lock" }}
+  save-cache-frontend:
+    steps:
+      - save_cache:
+          paths:
+            - ~/project/backend/yarn.lock
+            - ~/project/frontend/node_modules
+          key: frontend-packages-{{ checksum "~/project/frontend/yarn.lock" }}
+
+  restore-cache-admin:
+    steps:
+      - restore_cache:
+          keys:
+            - admin-packages-{{ checksum "~/project/admin/package.json" }}
+  save-cache-admin:
+    steps:
+      - save_cache:
+          paths:
+            - ~/project/backend/yarn.lock
+            - ~/project/admin/node_modules
+          key: admin-packages-{{ checksum "~/project/admin/yarn.lock" }}
+
   install-backend:
     description: "Run the installation process for the Medusa backend."
     steps:
-      - run: make install-backend-ci
+      - run: npm install
+
+  install-medusa:
+    description: "Installing medusa CLI."
+    steps:
+      - run: npm install -g @medusajs/medusa-cli
 
   install-admin:
     description: "Run the installation process for the Admin application."
     steps:
-      - run: make install-admin
+      - run: yarn install
+
+  install-gatsby:
+    description: "Install Gatsby cli"
+    steps:
+      - run: npm install -g gatsby-cli
+
+  install-frontend:
+    description: "Run the installation process for the Frontend application."
+    steps:
+      - run: yarn install
+
+  lint-admin:
+    description: "Run the linter on the Admin application"
+    steps:
+      - run: npm run lint
+
+  lint-backend:
+    description: "Run the linter on the Backend (Medusa) application"
+    steps:
+      - run: npm run lint
+
+  lint-frontend:
+    description: "Run the linter on the Frontend application"
+    steps:
+      - run: yarn lint
+
+  test-backend:
+    description: "Run the tests on the Backend (Medusa) application"
+    steps:
+      - run: npm run test
+
+  test-admin:
+    description: "Run the tests on the Admin application"
+    steps:
+      - run: yarn test
+
+  test-frontend:
+    description: "Run the tests on the Admin application"
+    steps:
+      - run: yarn test:ci
+
+  migrate-database:
+    description: "Run the migration command for the database"
+    steps:
+      - run: medusa migrations
+
+  seed-database:
+    description: "Run the seed command for the database"
+    steps:
+      - run: medusa seed -f data/seed.json
 
 executors:
-  #docker-backend:
+  docker-backend:
+    docker:
+      - image: cimg/node:17.8.0
+        environment:
+          DATABASE_URL: postgres://postgres:postgres@postgres:5432/medusa-docker
+          REDIS_URL: redis://redis
+          NODE_ENV: development
+          JWT_SECRET: something
+          COOKIE_SECRET: something
+      - image: postgres:10.4
+        environment:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: medusa-docker
+    working_directory: ~/project/backend
   docker-admin:
     docker:
       - image: cimg/node:17.8.0
         environment:
           GATSBY_MEDUSA_BACKEND_URL: http://0.0.0.0:9000
           NODE_ENV: development
-  docker-sonarcloud:
-    docker:
-      - image: cimg/openjdk:15.0
-
-
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/2.0/configuration-reference/#jobs
-jobs:
-  build-backend:
-    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
-    docker:
-      - image: cimg/base:stable
-    # Add steps to the job
-    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
-    steps:
-      - checkout
-      - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
-  build-admin:
+    working_directory: ~/project/admin
+  docker-frontend:
     docker:
       - image: cimg/node:17.8.0
-    steps:
-      - checkout
-      - install-admin
+        environment:
+          GATSBY_MEDUSA_BACKEND_URL: http://0.0.0.0:9000
+          NODE_ENV: development
+    working_directory: ~/project/frontend
+  docker-sonarcloud-backend:
+    docker:
+      - image: cimg/openjdk:15.0
+    working_directory: ~/project/backend
+  docker-sonarcloud-admin:
+    docker:
+      - image: cimg/openjdk:15.0
+    working_directory: ~/project/admin
+  docker-sonarcloud-frontend:
+    docker:
+      - image: cimg/openjdk:15.0
+    working_directory: ~/project/frontend
 
-# Invoke jobs via workflows
-# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
+jobs:
+  lint-backend:
+    executor: docker-backend
+    steps:
+      - checkout-project
+      - restore-cache-backend
+      - install-backend
+      - save-cache-backend
+      - lint-backend
+
+  lint-admin:
+    executor: docker-admin
+    steps:
+      - checkout-project
+      - restore-cache-frontend
+      - install-frontend
+      - save-cache-frontend
+      - lint-admin
+
+  lint-frontend:
+    executor: docker-frontend
+    steps:
+      - checkout-project
+      - restore-cache-frontend
+      - install-frontend
+      - save-cache-frontend
+      - lint-frontend
+
+  test-backend:
+    executor: docker-backend
+    steps:
+      - checkout-project
+      - restore-cache-frontend
+      - install-frontend
+      - save-cache-frontend
+      - test-backend
+
+  test-admin:
+    executor: docker-admin
+    steps:
+      - checkout-project
+      - restore-cache-frontend
+      - install-frontend
+      - save-cache-frontend
+      - test-admin
+
+  test-frontend:
+    executor: docker-frontend
+    steps:
+      - checkout-project
+      - restore-cache-frontend
+      - install-frontend
+      - save-cache-frontend
+      - test-frontend
+
+  seed-database:
+    executor: docker-admin
+    steps:
+      - checkout-project
+      - restore-cache-backend
+      - install-backend
+      - save-cache-backend
+      - install-medusa
+      - seed-database
+
+  migrate-database:
+    executor: docker-admin
+    steps:
+      - checkout-project
+      - restore-cache-backend
+      - install-backend
+      - save-cache-backend
+      - install-medusa
+      - migrate-database
+
 workflows:
-  build:
+  build-backend:
     jobs:
-      - build-admin
+      - lint-backend
+      - test-backend
+      - migrate-database
+      - seed-database
+  build-admin:
+    jobs:
+      - lint-admin
+      - test-admin
+  build-frontend:
+    jobs:
+      - lint-frontend
+      - test-frontend

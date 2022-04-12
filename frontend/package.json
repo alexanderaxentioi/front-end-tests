@@ -19,7 +19,7 @@
     "visualize:architecture-detailed": "./node_modules/.bin/depcruise-fmt ./.visualization/result.json --output-type dot src | dot -T svg | depcruise-wrap-stream-in-html > ./.visualization/detailed.html",
     "storybook": "start-storybook -p 3003 -c .storybook",
     "test": "jest --watch",
-    "test:ci": "jest --ci",
+    "test:ci": "yarn jest --ci",
     "test:visual": "loki test",
     "test:visual:update": "loki update"
   },

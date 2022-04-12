@@ -13,6 +13,9 @@ install-admin:
 	yarn install
 
 install-frontend:
+	@echo "Installing the frontend"
+	@cd frontend; \
+	yarn install --ignore-optional
 
 run: run-backend run-admin run-frontend
 
@@ -27,6 +30,9 @@ run-admin:
 	yarn start
 
 run-frontend:
+	@echo "Running the Frontend"
+	@cd frontend; \
+	yarn dev
 
 stop-backend:
 	@echo "Stop the Backend."
@@ -37,7 +43,41 @@ seed:
 	@echo "Seeding the backend"
 	@docker exec backend_backend_1 sh -c "medusa seed -f data/seed.json"
 
-install-backend-ci:
-	@echo "Installing the backend (CI)"
+migrate:
+	@echo "Running migrations"
+	@cd backend; \
+	medusa migrations
+
+ssh-backend:
+	@cd backend; \
+	docker exec -ti medusa-server-default bash
+
+lint-backend:
+	@echo "Running backend linter"
+	@cd backend; \
+	npx eslint src
+
+lint-admin:
+	@echo "Running admin linter"
 	@cd admin; \
-    npm install
+    npx eslint src
+
+lint-frontend:
+	@echo "Running frontend linter"
+	@cd frontend; \
+	yarn lint
+
+test-backend:
+	@echo "Running backend tests"
+	@cd backend; \
+	npm run test
+
+test-admin:
+	@echo "Running admin tests"
+	@cd admin; \
+	yarn test
+
+test-frontend:
+	@echo "Running frontend tests"
+	@cd frontend; \
+	yarn test:ci
